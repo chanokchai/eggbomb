@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="จำลองไข่ต้มสุกในไมโครเวฟเต็มกำลัง เทียบถ้วยเปล่ากับถ้วยน้ำ แสดงอุณหภูมิ สีไข่ แรงดันไอ และระดับอันตราย">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>ห้องทดลองไข่ระเบิด</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: appliance-panel tool. Controls strip → two microwave ovens side by side → temperature chart → danger scale + event log → model notes */
+:root{
+  --bg:#E8ECE9; --surface:#F7F9F7; --surface-2:#EEF2EF; --ink:#17201C; --muted:#56635C; --line:#C9D2CC;
+  --accent:#0D6B64; --accent-ink:#FFFFFF;
+  --oven:#2B312E; --oven-edge:#454D49; --lcd-bg:#15130D; --lcd:#FFB547; --lcd-dim:#5A4724;
+  --lv0:#2B8A3E; --lv1:#5C940D; --lv2:#D9A400; --lv3:#E8590C; --lv4:#D02828; --lv5:#9B1111; --lv6:#5F3DC4;
+  --lv-ink-light:#FFFFFF; --lv-ink-dark:#1D1600;
+  --s-dry:#E8590C; --s-wet:#1C6FD6; --s-water:#0E9AAE;
+  --f-display:"Chakra Petch","IBM Plex Sans Thai",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1312; --surface:#171D1B; --surface-2:#1E2522; --ink:#E3EAE6; --muted:#97A49D; --line:#2C3632;
+    --accent:#3FC1B5; --accent-ink:#06201D;
+    --oven:#222826; --oven-edge:#3A4340;
+    --s-dry:#FF8A4C; --s-wet:#5AA2FF; --s-water:#3CC8DA;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1312; --surface:#171D1B; --surface-2:#1E2522; --ink:#E3EAE6; --muted:#97A49D; --line:#2C3632;
+  --accent:#3FC1B5; --accent-ink:#06201D;
+  --oven:#222826; --oven-edge:#3A4340;
+  --s-dry:#FF8A4C; --s-wet:#5AA2FF; --s-water:#3CC8DA;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:grid;gap:18px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.25}
+h1{font-size:clamp(1.5rem,3.2vw,2.2rem);font-weight:700}
+h2{font-size:1.15rem;font-weight:600}
+h3{font-size:1rem;font-weight:600}
+p{margin:0}
+.sub{color:var(--muted);max-width:68ch}
+.eyebrow{font-family:var(--f-display);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.head{display:grid;gap:6px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* alert banner */
+.alert{display:flex;gap:12px;align-items:center;padding:12px 14px;border-radius:var(--r);background:var(--lvc,var(--lv0));color:var(--lvi,#fff);font-weight:500;min-height:52px}
+.alert svg{flex:none;width:26px;height:26px}
+.alert .txt{min-width:0}
+.alert b{font-family:var(--f-display);font-weight:700;letter-spacing:.02em}
+.alert.pulse{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{filter:brightness(1.25)}}
+
+/* controls */
+.controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:end;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.ctl{display:grid;gap:4px}
+.ctl label,.ctl .lbl{font-size:.8rem;color:var(--muted);font-weight:500}
+select{font:inherit;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);padding:8px 14px;font-weight:600}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-family:var(--f-display);letter-spacing:.04em;min-width:132px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:7px 11px;background:var(--surface-2);font-family:var(--f-mono);font-weight:500}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.chk{display:flex;gap:8px;align-items:center;font-size:.9rem;padding-block:7px}
+
+/* ovens */
+.ovens{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,500px),1fr));gap:18px}
+.oven{background:var(--oven);border:1px solid var(--oven-edge);border-radius:14px;padding:12px;display:grid;grid-template-columns:1fr 150px;gap:12px;color:#E9ECE8;box-shadow:0 1px 0 rgba(255,255,255,.06) inset}
+.door{position:relative;border-radius:8px;overflow:hidden;border:6px solid #1A1E1C;background:#120F0C;min-width:0}
+.door canvas{display:block;width:100%;aspect-ratio:4/3;max-width:100%}
+.panel{display:grid;gap:10px;align-content:start;min-width:0}
+.lcd{background:var(--lcd-bg);border-radius:6px;padding:8px 10px;font-family:var(--f-mono);color:var(--lcd);text-shadow:0 0 6px rgba(255,181,71,.45);display:grid;gap:2px}
+.lcd .t{font-size:1.7rem;line-height:1;letter-spacing:.04em}
+.lcd .p{font-size:.72rem;color:var(--lcd);opacity:.8;letter-spacing:.08em}
+.lcd .p.off{opacity:.35}
+.oname{font-family:var(--f-display);font-weight:600;font-size:.95rem;color:#F2F4F2}
+.odesc{font-size:.78rem;color:#AEB7B2;line-height:1.45}
+.chip{display:inline-block;padding:3px 9px;border-radius:999px;font-family:var(--f-display);font-weight:700;font-size:.82rem;background:var(--lvc);color:var(--lvi)}
+.meter{display:grid;grid-template-columns:repeat(6,1fr);gap:3px}
+.meter i{height:9px;border-radius:2px;background:#3B4440}
+.knobs{display:flex;gap:10px;justify-content:center;padding-top:4px}
+.knobs span{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#59615D,#2A2F2D 70%);border:1px solid #1A1E1C}
+@media (max-width:620px){.oven{grid-template-columns:1fr}.knobs{display:none}}
+
+.readout{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px 14px;margin-top:-8px}
+.readout div{display:grid;gap:0;min-width:0}
+.readout dt{font-size:.76rem;color:var(--muted)}
+.readout dd{margin:0;font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:1.15rem;font-weight:600}
+.readout dd small{font-size:.75rem;color:var(--muted);font-weight:500}
+.bar{height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-top:3px}
+.bar i{display:block;height:100%;width:0;background:var(--lv4)}
+.col{display:grid;gap:0}
+
+/* chart */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px;min-width:0}
+.chartbox{position:relative}
+#chart{display:block;width:100%;height:300px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.82rem;color:var(--muted)}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.legend svg{width:26px;height:10px}
+
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}
+.scale{display:grid;gap:6px}
+.scale .row{display:grid;grid-template-columns:24px 1fr;gap:10px;align-items:start}
+.scale .sw{width:24px;height:24px;border-radius:5px;background:var(--lvc);color:var(--lvi);display:grid;place-items:center;font-family:var(--f-mono);font-size:.78rem;font-weight:600}
+.scale .nm{font-weight:600}
+.scale .rg{font-family:var(--f-mono);font-size:.8rem;color:var(--muted)}
+.scale .ms{font-size:.85rem;color:var(--muted)}
+.log{list-style:none;margin:0;padding:0;display:grid;gap:4px;max-height:330px;overflow:auto;font-size:.88rem}
+.log li{display:grid;grid-template-columns:52px 14px 1fr;gap:8px;align-items:baseline;padding:4px 0;border-bottom:1px solid var(--line)}
+.log .tm{font-family:var(--f-mono);color:var(--muted)}
+.log .dot{width:10px;height:10px;border-radius:50%;background:var(--lvc);align-self:center}
+.log .who{font-weight:600}
+.empty{color:var(--muted);font-size:.88rem}
+
+.notes{display:grid;gap:10px}
+.notes ul{margin:0;padding-left:1.2em;display:grid;gap:4px;color:var(--ink);max-width:80ch}
+.notes li{font-size:.9rem}
+.warn{border-left:4px solid var(--lv4);padding:10px 14px;background:var(--surface);border-radius:0 var(--r) var(--r) 0;font-size:.92rem;max-width:90ch}
+@media (prefers-reduced-motion: reduce){.alert.pulse{animation:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="head">
+    <span class="eyebrow">Microwave thermal simulation</span>
+    <h1>ไข่ต้มสุก 2 ฟอง เข้าไมโครเวฟเต็มกำลัง</h1>
+    <p class="sub">ฟองซ้ายวางในถ้วยเปล่า ฟองขวาจมในน้ำเต็มถ้วย กดเริ่มแล้วดูอุณหภูมิไข่แดง ไข่ขาว และแรงดันไอน้ำที่สะสมในไข่แดงเปลี่ยนไปตามเวลา สีของไข่เปลี่ยนตามความร้อน</p>
+  </header>
+
+  <div class="alert" id="alert" role="status" aria-live="polite">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z" fill="currentColor" opacity=".18"/><path d="M12 3 2 20h20L12 3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 9v5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.3" fill="currentColor"/></svg>
+    <div class="txt" id="alertTxt"><b>พร้อมเริ่ม</b> · ไข่ทั้งสองฟองอยู่ที่อุณหภูมิเริ่มต้น</div>
+  </div>
+
+  <section class="controls" aria-label="ตั้งค่าการจำลอง">
+    <div class="btns">
+      <button class="primary" id="run">▶ เริ่ม</button>
+      <button id="reset">รีเซ็ต</button>
+    </div>
+    <div class="ctl"><span class="lbl">ความเร็วจำลอง</span>
+      <div class="seg" id="speed">
+        <button data-v="1" aria-pressed="true">1×</button><button data-v="5" aria-pressed="false">5×</button><button data-v="15" aria-pressed="false">15×</button><button data-v="40" aria-pressed="false">40×</button>
+      </div>
+    </div>
+    <div class="ctl"><label for="power">กำลังไมโครเวฟ (MAX)</label>
+      <select id="power"><option value="700">700 W</option><option value="800">800 W</option><option value="1000" selected>1000 W</option><option value="1200">1200 W</option></select>
+    </div>
+    <div class="ctl"><label for="t0">ไข่เริ่มต้น</label>
+      <select id="t0"><option value="5">จากตู้เย็น 5°C</option><option value="30" selected>อุณหภูมิห้อง 30°C</option><option value="60">ยังอุ่น 60°C</option></select>
+    </div>
+    <div class="ctl"><label for="water">น้ำในถ้วย (ฝั่งขวา)</label>
+      <select id="water"><option value="150">150 ml</option><option value="250" selected>250 ml</option><option value="350">350 ml</option></select>
+    </div>
+    <div class="ctl"><label for="view">สีไข่</label>
+      <select id="view"><option value="thermal" selected>ภาพความร้อน</option><option value="real">สีจริง</option></select>
+    </div>
+    <label class="chk"><input type="checkbox" id="sound"> เสียงเตือน</label>
+  </section>
+
+  <section class="ovens">
+    <div class="col">
+      <article class="oven" id="ov-dry">
+        <div class="door"><canvas aria-label="ภาพจำลองไข่ในถ้วยเปล่า"></canvas></div>
+        <div class="panel">
+          <div class="lcd"><span class="t mono">00:00</span><span class="p">MAX · <span class="pw">1000</span>W</span></div>
+          <div><div class="oname">A · ถ้วยเปล่า</div><div class="odesc">ไข่ต้มทั้งเปลือก ไม่มีน้ำล้อม รับคลื่นไมโครเวฟเต็ม ๆ</div></div>
+          <span class="chip">ปลอดภัย</span>
+          <div class="meter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="knobs" aria-hidden="true"><span></span><span></span></div>
+        </div>
+      </article>
+      <dl class="readout" id="rd-dry">
+        <div><dt>ไข่แดง (แกนกลาง)</dt><dd data-k="ty">–</dd></div>
+        <div><dt>ไข่ขาว</dt><dd data-k="tw">–</dd></div>
+        <div><dt>น้ำในถ้วย</dt><dd data-k="wt"><small>ไม่มีน้ำ</small></dd></div>
+        <div><dt>แรงดันไอในไข่แดง</dt><dd data-k="pg">–</dd><div class="bar"><i></i></div></div>
+      </dl>
+    </div>
+    <div class="col">
+      <article class="oven" id="ov-wet">
+        <div class="door"><canvas aria-label="ภาพจำลองไข่ในถ้วยน้ำ"></canvas></div>
+        <div class="panel">
+          <div class="lcd"><span class="t mono">00:00</span><span class="p">MAX · <span class="pw">1000</span>W</span></div>
+          <div><div class="oname">B · ถ้วยน้ำท่วมไข่</div><div class="odesc">น้ำดูดซับคลื่นส่วนใหญ่ และพาความร้อนไปเป็นไอน้ำ</div></div>
+          <span class="chip">ปลอดภัย</span>
+          <div class="meter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="knobs" aria-hidden="true"><span></span><span></span></div>
+        </div>
+      </article>
+      <dl class="readout" id="rd-wet">
+        <div><dt>ไข่แดง (แกนกลาง)</dt><dd data-k="ty">–</dd></div>
+        <div><dt>ไข่ขาว</dt><dd data-k="tw">–</dd></div>
+        <div><dt>น้ำในถ้วย</dt><dd data-k="wt">–</dd></div>
+        <div><dt>แรงดันไอในไข่แดง</dt><dd data-k="pg">–</dd><div class="bar"><i></i></div></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="card" aria-label="กราฟอุณหภูมิตามเวลา">
+    <h2>อุณหภูมิตามเวลา</h2>
+    <div class="legend">
+      <span><svg viewBox="0 0 26 10"><line x1="1" y1="5" x2="25" y2="5" stroke="var(--s-dry)" stroke-width="3"/></svg>A ไข่แดง</span>
+      <span><svg viewBox="0 0 26 10"><line x1="1" y1="5" x2="25" y2="5" stroke="var(--s-dry)" stroke-width="2" stroke-dasharray="4 3"/></svg>A ไข่ขาว</span>
+      <span><svg viewBox="0 0 26 10"><line x1="1" y1="5" x2="25" y2="5" stroke="var(--s-wet)" stroke-width="3"/></svg>B ไข่แดง</span>
+      <span><svg viewBox="0 0 26 10"><line x1="1" y1="5" x2="25" y2="5" stroke="var(--s-wet)" stroke-width="2" stroke-dasharray="4 3"/></svg>B ไข่ขาว</span>
+      <span><svg viewBox="0 0 26 10"><line x1="1" y1="5" x2="25" y2="5" stroke="var(--s-water)" stroke-width="2" stroke-dasharray="1 3" stroke-linecap="round"/></svg>B น้ำ</span>
+      <span><svg viewBox="0 0 26 10"><rect x="1" y="1" width="24" height="8" fill="var(--lv4)" opacity=".22"/></svg>โซนอันตราย ≥100°C</span>
+    </div>
+    <div class="chartbox"><canvas id="chart" aria-label="กราฟเส้นอุณหภูมิไข่และน้ำ"></canvas></div>
+  </section>
+
+  <section class="two">
+    <div class="card">
+      <h2>ระดับอันตราย</h2>
+      <div class="scale" id="scale"></div>
+    </div>
+    <div class="card">
+      <h2>บันทึกเหตุการณ์</h2>
+      <ul class="log" id="log"><li class="empty" style="display:block;border:0">กดเริ่มเพื่อดูว่าอะไรเกิดก่อน</li></ul>
+    </div>
+  </section>
+
+  <section class="card notes">
+    <h2>แบบจำลองนี้คิดอย่างไร</h2>
+    <ul>
+      <li>ไข่ 1 ฟองแบ่งเป็น 2 ก้อนความร้อน: ไข่ขาว 40 g (c ≈ 3.7 J/g·K) และไข่แดง 18 g (c ≈ 3.0 J/g·K) ส่งความร้อนถึงกันผ่านเนื้อไข่ขาวหนา ~8 mm (≈ 0.21 W/K)</li>
+      <li>ถ้วยเปล่า: ไข่ดูดซับราว 30% ของกำลังเครื่อง และไข่แดงได้ส่วนแบ่งต่อกรัมมากกว่า เพราะรูปทรงกลมของไข่โฟกัสคลื่นเข้าแกนกลาง ไข่แดงจึงร้อนเร็วที่สุด</li>
+      <li>ถ้วยน้ำ: น้ำดูดซับราว 78% ของกำลังเครื่อง ไข่ที่จมน้ำรับคลื่นตรงเพียงเล็กน้อย น้ำต้มได้แค่ 100°C แล้วพลังงานที่เหลือกลายเป็นไอน้ำ (2257 J/g) น้ำจึงค่อย ๆ ลด จนไข่โผล่พ้นน้ำ</li>
+      <li>แรงดันในไข่แดงคำนวณจากความดันไอน้ำอิ่มตัว (สมการ Antoine) เปลือกและไข่ขาวทนแรงดันเกจได้ราว 0.5 atm (ไข่แดง ≈ 112°C) เกินนั้นถือว่าระเบิด</li>
+      <li>ไข่แดงที่ร้อนนานเกิน 85°C จะเกิดวงสีเขียวเทา (เหล็กซัลไฟด์) ดูได้ในโหมดสีจริง</li>
+      <li>ตัวเลขเป็นค่าประมาณเพื่อเปรียบเทียบแนวโน้ม เครื่องจริงแต่ละรุ่น ขนาดไข่ และตำแหน่งบนจานหมุนให้ผลต่างกันได้มาก</li>
+    </ul>
+    <p class="warn"><b>อย่าลองที่บ้าน</b> ไข่ต้มที่อุ่นในไมโครเวฟอาจไม่ระเบิดในเครื่อง แต่ระเบิดตอนเจาะ ผ่า หรือกัด เพราะไข่แดงร้อนเกิน 100°C ใต้แรงดัน ไอน้ำและไข่แดงร้อนจัดพุ่งใส่หน้าและในปากได้ ถ้าจะอุ่นไข่ต้ม ให้ผ่าครึ่งหรือหั่นก่อน ใช้ไฟกลาง แล้วอุ่นทีละไม่กี่วินาที</p>
+  </section>
+</div>
+
+<script>
+(() => {
+const $ = (s, r=document) => r.querySelector(s);
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- physics constants ---------- */
+const C = {
+  mW:40, mY:18, cW:3.7, cY:3.0, Gwy:0.21, Gair:0.07, Gevap:6, Tair:30, Twater0:30,
+  burst:0.5,                               // gauge atm the shell + white can hold
+  dry:{yolk:0.12, white:0.18},             // fraction of magnetron power absorbed when egg is exposed
+  sub:{yolk:0.0012, white:0.006},          // fraction absorbed when fully under water
+  waterEta:0.78, Gww:2.5, Gcup:0.4,
+  cupA:44, eggV:55, eggH:4.4, L:2257, cWater:4.18, TMAX:1200
+};
+function psat(T){ // saturation pressure of water, atm (Antoine)
+  const k = T<=100 ? [8.07131,1730.63,233.426] : [8.14019,1810.94,244.485];
+  return Math.pow(10, k[0] - k[1]/(k[2]+T))/760;
+}
+const gauge = T => Math.max(0, psat(T)-1);
+
+const LV = [
+  {n:'ปลอดภัย',  r:'< 50°C',     m:'ยังอุ่นไม่ทั่ว กินได้', dark:false},
+  {n:'อุ่น',      r:'50–70°C',    m:'อุ่นกำลังดี', dark:false},
+  {n:'ร้อน',      r:'70–90°C',    m:'ร้อนลวกปากได้ ควรหยุดอุ่น', dark:true},
+  {n:'ใกล้เดือด', r:'90–100°C',   m:'น้ำในไข่เริ่มกลายเป็นไอ', dark:false},
+  {n:'อันตราย',  r:'≥ 100°C',    m:'ไข่แดงร้อนเกินจุดเดือดใต้แรงดัน อาจระเบิดเมื่อเจาะ ผ่า หรือกัด', dark:false},
+  {n:'วิกฤต',     r:'แรงดัน ≥ 75% จุดแตก', m:'ใกล้ระเบิดในเครื่อง หยุดเครื่องทันที ห้ามเปิดประตูหรือแตะไข่', dark:false},
+  {n:'ระเบิด',    r:'แรงดัน ≥ 0.5 atm', m:'เปลือกและไข่ขาวทนแรงดันไม่ไหว', dark:false},
+];
+const lvVar = i => `var(--lv${i})`;
+const lvInk = i => LV[i].dark ? 'var(--lv-ink-dark)' : 'var(--lv-ink-light)';
+function levelOf(s){
+  if (s.exploded) return 6;
+  if (gauge(s.Ty)/C.burst >= 0.75) return 5;
+  const T = Math.max(s.Ty, s.Tw);
+  return T>=100?4 : T>=90?3 : T>=70?2 : T>=50?1 : 0;
+}
+
+/* ---------- state ---------- */
+let P=1000, T0=30, W0=250, speed=1, running=false, t=0, view='thermal', sound=false;
+let eggs, hist, lastRec, events;
+function waterLevel(m){ // cm of water in cup with egg lying on the bottom
+  if (m<=0) return 0;
+  if (m + C.eggV >= C.cupA*C.eggH) return (m + C.eggV)/C.cupA;
+  return m/(C.cupA - C.eggV/C.eggH);
+}
+function exposure(s){ return s.kind==='dry' ? 1 : Math.max(0, Math.min(1, 1 - waterLevel(s.m)/C.eggH)); }
+function makeEgg(kind){
+  return {kind, Ty:T0, Tw:T0, Twater: kind==='wet'?C.Twater0:null, m: kind==='wet'?W0:0,
+    exploded:false, tBoom:null, ring:0, rubber:0, flags:{}};
+}
+function reset(){
+  running=false; t=0; lastRec=-1; events=[];
+  eggs={dry:makeEgg('dry'), wet:makeEgg('wet')};
+  hist=[]; record();
+  for (const k in ovens) ovens[k].fx = freshFx();
+  renderLog(); updateRunBtn();
+}
+
+function stepEgg(s, dt){
+  if (s.exploded) return;
+  const e = exposure(s);
+  const Py = P*(C.sub.yolk + e*(C.dry.yolk - C.sub.yolk));
+  const Pw = P*(C.sub.white + e*(C.dry.white - C.sub.white));
+  const hasW = s.kind==='wet' && s.m>0;
+  const Gc = hasW ? C.Gww*(1-e) : 0;
+  const Qwy = C.Gwy*(s.Ty - s.Tw);
+  const Qww = hasW ? Gc*(s.Tw - s.Twater) : 0;
+  const Qair = C.Gair*e*(s.Tw - C.Tair);
+  const Qev = s.Tw>100 ? C.Gevap*e*(s.Tw-100) : 0;
+  s.Ty += (Py - Qwy)*dt/(C.mY*C.cY);
+  s.Tw += (Pw + Qwy - Qww - Qair - Qev)*dt/(C.mW*C.cW);
+  if (hasW){
+    const Pwat = P*C.waterEta*Math.min(1, s.m/120);
+    const Qin = Pwat + Qww - C.Gcup*(s.Twater - C.Tair);
+    if (s.Twater < 100 || Qin < 0){
+      s.Twater += Qin*dt/(s.m*C.cWater);
+      if (s.Twater > 100){ s.m -= (s.Twater-100)*s.m*C.cWater/C.L; s.Twater = 100; }
+    } else s.m -= Qin*dt/C.L;
+    if (s.m < 0.5){ s.m = 0; }
+  }
+  if (s.Ty > 85) s.ring += (s.Ty-85)*dt;
+  if (s.Tw > 100) s.rubber += (s.Tw-100)*dt;
+  if (gauge(s.Ty) >= C.burst){ s.exploded = true; s.tBoom = t+dt; }
+}
+
+const NAME = {dry:'A ถ้วยเปล่า', wet:'B ถ้วยน้ำ'};
+function check(k){
+  const s=eggs[k], f=s.flags, add=(id,lv,txt)=>{ if(!f[id]){ f[id]=1; events.push({t, who:NAME[k], lv, txt}); renderLog(); } };
+  if (s.Ty>=70) add('y70',2,'ไข่แดงถึง 70°C ร้อนลวกปาก');
+  if (s.Tw>=100) add('w100',3,'ไข่ขาวถึง 100°C เริ่มเกิดไอน้ำในเนื้อไข่');
+  if (s.Ty>=100) add('y100',4,'ไข่แดงเกิน 100°C แรงดันไอเริ่มสะสม');
+  if (s.kind==='wet'){
+    if (s.Twater>=99.95 && s.m>0) add('boil',1,'น้ำในถ้วยเดือด อุณหภูมิน้ำคงที่ 100°C');
+    if (exposure(s)>0.01 && s.m>0) add('expose',3,'น้ำระเหยจนไข่โผล่พ้นน้ำ เริ่มรับคลื่นตรง');
+    if (s.m<=0) add('dryout',4,'น้ำแห้งหมดถ้วย ไข่รับคลื่นเต็มที่');
+  }
+  if (levelOf(s)===5) add('crit',5,`แรงดันไอ ${gauge(s.Ty).toFixed(2)} atm ใกล้จุดแตก`);
+  if (s.exploded){ add('boom',6,`ไข่ระเบิด! ไข่แดง ${s.Ty.toFixed(0)}°C`); ovens[k].boom(); }
+}
+function record(){
+  const d=eggs.dry, w=eggs.wet;
+  hist.push({t, dy:d.exploded?null:d.Ty, dw:d.exploded?null:d.Tw, wy:w.exploded?null:w.Ty, ww:w.exploded?null:w.Tw, wt:w.m>0?w.Twater:null});
+}
+function stepAll(dt){
+  stepEgg(eggs.dry, dt); stepEgg(eggs.wet, dt); t += dt;
+  check('dry'); check('wet');
+  if (t - lastRec >= 0.5){ record(); lastRec = t; }
+  if ((eggs.dry.exploded && eggs.wet.exploded) || t >= C.TMAX){ running=false; updateRunBtn(); record(); }
+}
+
+/* ---------- colors ---------- */
+const hex = h => [1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+const mix = (a,b,k) => a.map((v,i)=>Math.round(v+(b[i]-v)*k));
+const rgb = (c,a=1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+const STOPS = [[0,'#2F4FD8'],[25,'#1FA6C9'],[45,'#2FB35A'],[65,'#E3C21B'],[85,'#F08A1C'],[100,'#E8352B'],[110,'#B81D5C'],[125,'#7B2FBF']].map(([v,c])=>[v,hex(c)]);
+function thermal(T){
+  if (T<=STOPS[0][0]) return STOPS[0][1];
+  for (let i=1;i<STOPS.length;i++) if (T<=STOPS[i][0]){ const [a,ca]=STOPS[i-1],[b,cb]=STOPS[i]; return mix(ca,cb,(T-a)/(b-a)); }
+  return STOPS[STOPS.length-1][1];
+}
+const REAL = {white:hex('#F7F4EA'), whiteHot:hex('#E4D3A2'), yolk:hex('#F5B935'), yolkDry:hex('#E8A825'), ring:hex('#6E7744')};
+
+/* ---------- oven rendering ---------- */
+function freshFx(){ return {angle:0, bubbles:[], steam:[], parts:[], splats:[], flash:0, broken:false}; }
+const ovens = {};
+function makeOven(k){
+  const root = $('#ov-'+k), cv = $('canvas', root), ctx = cv.getContext('2d');
+  const o = {k, root, cv, ctx, fx:freshFx(), W:0, H:0, geo:null,
+    lcdT:$('.lcd .t',root), lcdP:$('.lcd .p',root), pw:$('.pw',root), chip:$('.chip',root), meter:[...root.querySelectorAll('.meter i')], rd:$('#rd-'+k)};
+  const fit = () => { const dpr=devicePixelRatio||1; o.W=cv.clientWidth; o.H=cv.clientHeight; cv.width=Math.round(o.W*dpr); cv.height=Math.round(o.H*dpr); o.dpr=dpr; };
+  new ResizeObserver(fit).observe(cv); fit();
+  o.boom = () => {
+    const g=o.geo, fx=o.fx; if (!g || fx.broken) return;
+    fx.broken=true; fx.flash=1;
+    const s=eggs[k];
+    for (let i=0;i<(reduced?18:70);i++){
+      const a=Math.random()*Math.PI*2, sp=(0.5+Math.random())*o.W*1.1;
+      const yolk=Math.random()<0.4;
+      fx.parts.push({x:g.ex+(Math.random()-.5)*g.eL*.4, y:g.ey, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - o.W*0.6, r:1.5+Math.random()*4,
+        c: yolk ? (view==='thermal'?thermal(s.Ty):REAL.yolk) : (view==='thermal'?thermal(s.Tw):REAL.white)});
+    }
+    if (k==='wet' && s.m>0) for (let i=0;i<30;i++){ const a=-Math.PI*(0.15+Math.random()*0.7), sp=(0.4+Math.random())*o.W;
+      fx.parts.push({x:g.cx+(Math.random()-.5)*g.cupW*.6, y:g.waterY, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, r:1.5+Math.random()*2.5, c:[120,180,240], water:true}); }
+  };
+  ovens[k]=o; return o;
+}
+
+function eggPath(ctx, cx, cy, L, H){
+  ctx.beginPath();
+  for (let i=0;i<=48;i++){ const a=i/48*Math.PI*2; const x=cx+L/2*Math.cos(a); const y=cy+H/2*Math.sin(a)*(1+0.1*Math.cos(a)); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
+  ctx.closePath();
+}
+
+function drawOven(o, rdt){
+  const {ctx, W, H, fx} = o; if (!W) return;
+  const s = eggs[o.k], lv = levelOf(s);
+  ctx.setTransform(o.dpr,0,0,o.dpr,0,0);
+  // interior
+  const bg=ctx.createLinearGradient(0,0,0,H); bg.addColorStop(0,'#2C2822'); bg.addColorStop(1,'#151310'); ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1;
+  ctx.strokeRect(W*.08,H*.08,W*.84,H*.66);
+  [[0,0,W*.08,H*.08],[W,0,W*.92,H*.08],[0,H,W*.08,H*.74],[W,H,W*.92,H*.74]].forEach(([a,b,c,d])=>{ctx.beginPath();ctx.moveTo(a,b);ctx.lineTo(c,d);ctx.stroke();});
+  const on = running && !s.exploded;
+  if (on){ const lg=ctx.createRadialGradient(W*.5,H*.2,10,W*.5,H*.5,W*.7); lg.addColorStop(0,'rgba(255,205,130,.30)'); lg.addColorStop(1,'rgba(255,190,110,0)'); ctx.fillStyle=lg; ctx.fillRect(0,0,W,H); }
+  // turntable
+  if (on) fx.angle += rdt*Math.PI*2/10;
+  const tty=H*.88, ttr=W*.38;
+  ctx.fillStyle='rgba(210,225,235,.10)'; ctx.strokeStyle='rgba(220,235,245,.25)';
+  ctx.beginPath(); ctx.ellipse(W/2,tty,ttr,H*.055,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle='rgba(220,235,245,.18)';
+  for (let i=0;i<6;i++){ const a=fx.angle+i*Math.PI/3; ctx.beginPath(); ctx.ellipse(W/2,tty,ttr*.75,H*.04,0,a,a+.35); ctx.stroke(); }
+  // geometry (cm → px)
+  let jx=0, jy=0;
+  if (lv===5 && !reduced){ const k=gauge(s.Ty)/C.burst; jx=(Math.random()-.5)*5*k; jy=(Math.random()-.5)*3*k; }
+  const ppc=W*.36/7.5, cx=W/2+Math.cos(fx.angle)*W*.035, bot=H*.865;
+  const cupW=7.5*ppc, cupB=6.4*ppc, cupH=8*ppc, top=bot-cupH;
+  const eL=5.8*ppc, eH=C.eggH*ppc, ex=cx+jx, ey=bot-eH/2-ppc*.15+jy;
+  const lvl=Math.min(8, waterLevel(s.m))*ppc, waterY=bot-lvl;
+  o.geo={cx,ex,ey,eL,eH,cupW,waterY,bot,top,ppc};
+  // cup back
+  ctx.fillStyle='rgba(200,220,255,.06)';
+  ctx.beginPath(); ctx.moveTo(cx-cupW/2,top); ctx.lineTo(cx+cupW/2,top); ctx.lineTo(cx+cupB/2,bot); ctx.lineTo(cx-cupB/2,bot); ctx.closePath(); ctx.fill();
+  // egg
+  const maxT=Math.max(s.Ty,s.Tw);
+  if (!fx.broken){
+    if (maxT>90){ ctx.save(); ctx.shadowColor=rgb(thermal(maxT),.9); ctx.shadowBlur=8+ (maxT-90)*0.9; eggPath(ctx,ex,ey,eL,eH); ctx.fillStyle='rgba(0,0,0,.01)'; ctx.fill(); ctx.restore(); }
+    const cw = view==='thermal' ? thermal(s.Tw) : mix(REAL.white,REAL.whiteHot,Math.min(1,s.rubber/900));
+    const cy_ = view==='thermal' ? thermal(s.Ty) : mix(REAL.yolk,REAL.yolkDry,Math.min(1,s.ring/2000));
+    eggPath(ctx,ex,ey,eL,eH);
+    const wg=ctx.createRadialGradient(ex,ey,eH*.2,ex,ey,eL*.55);
+    wg.addColorStop(0,rgb(cw)); wg.addColorStop(1,rgb(mix(cw,[0,0,0],view==='thermal'?.12:.06)));
+    ctx.fillStyle=wg; ctx.fill();
+    ctx.lineWidth=2.5; ctx.strokeStyle= view==='thermal' ? 'rgba(255,255,255,.55)' : '#D8B48A'; ctx.stroke();
+    const yr=eH*.3, yx=ex+eL*.04;
+    ctx.beginPath(); ctx.arc(yx,ey,yr,0,Math.PI*2);
+    const yg=ctx.createRadialGradient(yx-yr*.3,ey-yr*.3,1,yx,ey,yr); yg.addColorStop(0,rgb(mix(cy_,[255,255,255],.18))); yg.addColorStop(1,rgb(cy_));
+    ctx.fillStyle=yg; ctx.fill();
+    if (view==='real' && s.ring>0){ ctx.lineWidth=Math.max(1.5,yr*.18); ctx.strokeStyle=rgb(REAL.ring,Math.min(.9,s.ring/1500)); ctx.stroke(); }
+    // labels
+    ctx.font=`600 ${Math.max(10,W*.026)}px "IBM Plex Mono", monospace`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    const lab=(txt,x,y,c)=>{ ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.55)'; ctx.strokeText(txt,x,y); ctx.fillStyle=c; ctx.fillText(txt,x,y); };
+    lab(s.Ty.toFixed(0)+'°',yx,ey,'#fff');
+    lab(s.Tw.toFixed(0)+'°',ex-eL*.34,ey,'#fff');
+  } else {
+    // remnants
+    const cs = view==='thermal' ? thermal(s.Tw) : REAL.white;
+    ctx.fillStyle=rgb(cs,.9);
+    [[-.32,.3,.18],[.05,.38,.22],[.3,.32,.15],[-.1,.25,.1]].forEach(([dx,dy,r])=>{ctx.beginPath();ctx.ellipse(ex+dx*eL,bot-eH*.12+dy*0,eL*r,eH*r*.6,dx,0,Math.PI*2);ctx.fill();});
+    ctx.fillStyle=rgb(view==='thermal'?thermal(s.Ty):REAL.yolk,.9);
+    ctx.beginPath(); ctx.ellipse(ex+eL*.1,bot-eH*.08,eL*.12,eH*.06,0,0,Math.PI*2); ctx.fill();
+  }
+  // water
+  if (s.kind==='wet' && s.m>0){
+    const wl=(cupW-cupB)/2*(bot-waterY)/cupH;
+    ctx.fillStyle='rgba(80,160,235,.36)';
+    ctx.beginPath(); ctx.moveTo(cx-cupB/2-wl,waterY);
+    const ph=performance.now()/400;
+    for (let x=-cupB/2-wl;x<=cupB/2+wl;x+=4) ctx.lineTo(cx+x, waterY+Math.sin(x*.15+ph)*(s.Twater>97?2:0.8));
+    ctx.lineTo(cx+cupB/2+wl,waterY); ctx.lineTo(cx+cupB/2,bot); ctx.lineTo(cx-cupB/2,bot); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='rgba(170,215,255,.6)'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(cx-cupB/2-wl,waterY); ctx.lineTo(cx+cupB/2+wl,waterY); ctx.stroke();
+    // bubbles
+    if (on && s.Twater>92){ const rate=(s.Twater-92)/8*(reduced?4:30); if (Math.random()<rate*rdt*Math.min(speed,3)) fx.bubbles.push({x:cx+(Math.random()-.5)*cupB*.9, y:bot-3, r:1+Math.random()*3, v:H*(.25+Math.random()*.3)}); }
+    ctx.strokeStyle='rgba(220,240,255,.75)'; ctx.lineWidth=1;
+    fx.bubbles = fx.bubbles.filter(b=>{ b.y-=b.v*rdt; b.x+=Math.sin(b.y*.1)*.3; if (b.y<waterY) return false; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.stroke(); return true; });
+  } else fx.bubbles.length=0;
+  // cup outline
+  ctx.strokeStyle='rgba(220,235,255,.55)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(cx-cupW/2,top); ctx.lineTo(cx-cupB/2,bot); ctx.lineTo(cx+cupB/2,bot); ctx.lineTo(cx+cupW/2,top); ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.07)'; ctx.fillRect(cx-cupW/2+6,top+6,4,cupH*.7);
+  // steam
+  const steamSrc = s.kind==='wet' && s.m>0 ? (s.Twater>85 ? (s.Twater-85)/15 : 0) : (!fx.broken && s.Tw>97 ? Math.min(1,(s.Tw-97)/8) : 0);
+  if (on && steamSrc>0 && Math.random()<steamSrc*rdt*(reduced?3:14)){
+    const sy = s.kind==='wet' && s.m>0 ? waterY : ey-eH/2;
+    fx.steam.push({x:cx+(Math.random()-.5)*cupW*.6, y:sy, r:4+Math.random()*4, life:1});
+  }
+  fx.steam = fx.steam.filter(p=>{ p.y-=H*.12*rdt; p.x+=Math.sin(p.y*.05)*.4; p.r+=10*rdt; p.life-=rdt*.45; if(p.life<=0) return false;
+    ctx.fillStyle=`rgba(240,240,240,${p.life*.16})`; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); return true; });
+  // explosion particles + splats
+  for (const sp of fx.splats){ ctx.fillStyle=rgb(sp.c,sp.water?.25:.85); ctx.beginPath(); ctx.ellipse(sp.x,sp.y,sp.r*1.4,sp.r,sp.a,0,Math.PI*2); ctx.fill(); }
+  fx.parts = fx.parts.filter(p=>{
+    p.vy += W*1.6*rdt; p.x+=p.vx*rdt; p.y+=p.vy*rdt;
+    const hit = p.x<3||p.x>W-3||p.y<3||p.y>H*.9;
+    if (hit){ fx.splats.push({x:Math.max(3,Math.min(W-3,p.x)), y:Math.max(3,Math.min(H*.9,p.y)), r:p.r*1.3, c:p.c, a:Math.random()*3, water:p.water}); return false; }
+    ctx.fillStyle=rgb(p.c,p.water?.6:1); ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); return true;
+  });
+  if (fx.flash>0){ ctx.fillStyle=`rgba(255,240,220,${fx.flash*.85})`; ctx.fillRect(0,0,W,H); fx.flash=Math.max(0,fx.flash-rdt*2.2); }
+  // door mesh
+  ctx.fillStyle='rgba(0,0,0,.22)';
+  const step=Math.max(5,W/90);
+  for (let y=step/2;y<H;y+=step) for (let x=(Math.round(y/step)%2?step/2:0);x<W;x+=step){ ctx.fillRect(x,y,1.6,1.6); }
+  const gl=ctx.createLinearGradient(0,0,W,H); gl.addColorStop(0,'rgba(255,255,255,.07)'); gl.addColorStop(.35,'rgba(255,255,255,0)'); ctx.fillStyle=gl; ctx.fillRect(0,0,W,H);
+  // danger tint
+  if (lv>=4 && !s.exploded){ ctx.strokeStyle=`rgba(230,40,40,${lv===5?.5+.4*Math.sin(performance.now()/120):.45})`; ctx.lineWidth=4; ctx.strokeRect(2,2,W-4,H-4); }
+}
+
+function fmtT(sec){ const m=Math.floor(sec/60), s=Math.floor(sec%60); return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
+function updatePanel(o){
+  const s=eggs[o.k], lv=levelOf(s);
+  o.lcdT.textContent = s.exploded ? 'Err ' : fmtT(t);
+  o.lcdP.classList.toggle('off', !(running && !s.exploded));
+  o.pw.textContent=P;
+  o.chip.textContent = `ระดับ ${Math.min(lv,5)} · ${LV[lv].n}`; if (lv===6) o.chip.textContent='ระเบิดแล้ว';
+  o.chip.style.setProperty('--lvc',lvVar(lv)); o.chip.style.setProperty('--lvi',lvInk(lv));
+  o.meter.forEach((m,i)=>{ m.style.background = i < lv ? lvVar(Math.min(i+1,6)) : '' });
+  const r=o.rd, g=gauge(s.Ty);
+  const deg = v => `${v.toFixed(1)}<small> °C</small>`;
+  $('[data-k=ty]',r).innerHTML = s.exploded ? '<small>ระเบิด</small>' : deg(s.Ty);
+  $('[data-k=tw]',r).innerHTML = s.exploded ? '<small>ระเบิด</small>' : deg(s.Tw);
+  if (s.kind==='wet') $('[data-k=wt]',r).innerHTML = s.m>0 ? `${s.Twater.toFixed(0)}<small> °C · ${s.m.toFixed(0)} ml</small>` : '<small>แห้งหมดแล้ว</small>';
+  $('[data-k=pg]',r).innerHTML = s.exploded ? '<small>ทะลุจุดแตก</small>' : `${g.toFixed(2)}<small> atm</small>`;
+  const bar=$('.bar i',r); bar.style.width = (s.exploded?100:Math.min(100,g/C.burst*100))+'%';
+  bar.style.background = lvVar(Math.max(3,lv));
+}
+
+/* ---------- alert ---------- */
+let lastAlert='';
+function updateAlert(){
+  const ld=levelOf(eggs.dry), lw=levelOf(eggs.wet), lv=Math.max(ld,lw);
+  const el=$('#alert');
+  el.style.setProperty('--lvc', t===0&&!running ? 'var(--surface-2)' : lvVar(lv));
+  el.style.setProperty('--lvi', t===0&&!running ? 'var(--ink)' : lvInk(lv));
+  el.classList.toggle('pulse', lv>=4 && lv<6 && running);
+  let html;
+  if (t===0 && !running) html='<b>พร้อมเริ่ม</b> · ไข่ทั้งสองฟองอยู่ที่ '+T0+'°C กด ▶ เริ่ม เพื่อเปิดไมโครเวฟ';
+  else {
+    const who = [['dry',ld],['wet',lw]].filter(([,l])=>l===lv).map(([k])=>NAME[k]).join(' และ ');
+    html = `<b>ระดับ ${Math.min(lv,5)} ${LV[lv].n}</b> · ${who}: ${LV[lv].m}`;
+    if (lv===6) html = `<b>ระเบิด</b> · ${who} ระเบิดที่ ${fmtT((ld===6?eggs.dry:eggs.wet).tBoom)}` + (Math.min(ld,lw)<6 ? ` · อีกฟองอยู่ระดับ ${Math.min(ld,lw)} ${LV[Math.min(ld,lw)].n}` : '');
+    if (!running && t>=C.TMAX) html += ' · ครบ 20 นาที หยุดการจำลอง';
+  }
+  if (html!==lastAlert){ $('#alertTxt').innerHTML=html; lastAlert=html; }
+  return lv;
+}
+
+/* ---------- sound ---------- */
+let ac=null, nextBeep=0;
+function beep(f,d){ if(!ac) return; const o=ac.createOscillator(), g=ac.createGain(); o.type='square'; o.frequency.value=f; g.gain.value=.05; o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime+d); }
+function soundTick(lv, now){
+  if (!sound || !running || lv<4 || lv===6) return;
+  if (now<nextBeep) return;
+  beep(lv===5?1320:880, .12); nextBeep = now + (lv===5?350:1000);
+}
+
+/* ---------- chart ---------- */
+const chart=$('#chart'), cctx=chart.getContext('2d');
+let cw=0, ch=0, cdpr=1;
+new ResizeObserver(()=>{ cdpr=devicePixelRatio||1; cw=chart.clientWidth; ch=chart.clientHeight; chart.width=Math.round(cw*cdpr); chart.height=Math.round(ch*cdpr); }).observe(chart);
+function tok(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function drawChart(){
+  if (!cw) return;
+  const c=cctx; c.setTransform(cdpr,0,0,cdpr,0,0); c.clearRect(0,0,cw,ch);
+  const L=40,R=12,Tp=10,B=26, pw=cw-L-R, ph=ch-Tp-B;
+  const tMax=Math.max(60, Math.ceil(t*1.12/30)*30), yMax=130;
+  const X=v=>L+v/tMax*pw, Y=v=>Tp+ph-(Math.min(v,yMax))/yMax*ph;
+  const ink=tok('--ink'), muted=tok('--muted'), line=tok('--line');
+  const band=(a,b,col,al)=>{ c.globalAlpha=al; c.fillStyle=col; c.fillRect(L,Y(b),pw,Y(a)-Y(b)); c.globalAlpha=1; };
+  band(70,90,tok('--lv2'),.10); band(90,100,tok('--lv3'),.12); band(100,yMax,tok('--lv4'),.13);
+  c.font='11px "IBM Plex Mono", monospace'; c.fillStyle=muted; c.strokeStyle=line; c.lineWidth=1;
+  c.textAlign='right'; c.textBaseline='middle';
+  for (let v=0; v<=yMax; v+=20){ c.beginPath(); c.moveTo(L,Y(v)+.5); c.lineTo(L+pw,Y(v)+.5); c.stroke(); c.fillText(v+'°',L-6,Y(v)); }
+  c.setLineDash([3,3]); c.strokeStyle=tok('--lv4'); c.beginPath(); c.moveTo(L,Y(100)); c.lineTo(L+pw,Y(100)); c.stroke(); c.setLineDash([]);
+  const steps=[10,15,30,60,120,180,300,600]; const st=steps.find(s=>tMax/s<=7)||600;
+  c.textAlign='center'; c.textBaseline='top';
+  for (let v=0; v<=tMax+.01; v+=st){ c.fillText(fmtT(v),X(v),Tp+ph+6); }
+  const series=[['dy','--s-dry',2.6,[]],['dw','--s-dry',1.8,[5,4]],['wy','--s-wet',2.6,[]],['ww','--s-wet',1.8,[5,4]],['wt','--s-water',1.8,[1,4]]];
+  c.lineJoin='round'; c.lineCap='round';
+  for (const [k,col,w,dash] of series){
+    c.strokeStyle=tok(col); c.lineWidth=w; c.setLineDash(dash); c.beginPath(); let pen=false;
+    for (const h of hist){ if (h[k]==null){ pen=false; continue; } const x=X(h.t), y=Y(h[k]); pen?c.lineTo(x,y):c.moveTo(x,y); pen=true; }
+    const cur = k==='dy'?eggs.dry.Ty:k==='dw'?eggs.dry.Tw:k==='wy'?eggs.wet.Ty:k==='ww'?eggs.wet.Tw:(eggs.wet.m>0?eggs.wet.Twater:null);
+    const ex = k[0]==='d'?eggs.dry.exploded:k==='wt'?false:eggs.wet.exploded;
+    if (pen && cur!=null && !ex) c.lineTo(X(t),Y(cur));
+    c.stroke();
+  }
+  c.setLineDash([]);
+  // endpoints + boom markers
+  for (const [k,col] of [['dry','--s-dry'],['wet','--s-wet']]){
+    const s=eggs[k];
+    if (s.exploded){ const x=X(s.tBoom), y=Y(Math.min(s.Ty,yMax)); c.strokeStyle=tok('--lv6'); c.lineWidth=2.5; c.beginPath(); c.moveTo(x-6,y-6); c.lineTo(x+6,y+6); c.moveTo(x+6,y-6); c.lineTo(x-6,y+6); c.stroke();
+      c.fillStyle=ink; c.font='600 12px "Chakra Petch", sans-serif'; c.textAlign=x>L+pw-80?'right':'left'; c.textBaseline='bottom'; c.fillText(`${k==='dry'?'A':'B'} ระเบิด ${fmtT(s.tBoom)}`, x+(c.textAlign==='left'?8:-8), y-6); }
+    else if (t>0){ c.fillStyle=tok(col); c.beginPath(); c.arc(X(t),Y(s.Ty),4,0,Math.PI*2); c.fill(); }
+  }
+}
+
+/* ---------- static UI ---------- */
+$('#scale').innerHTML = LV.map((l,i)=>`<div class="row" style="--lvc:${lvVar(i)};--lvi:${lvInk(i)}"><span class="sw">${i<6?i:'×'}</span><div><span class="nm">${l.n}</span> <span class="rg">${l.r}</span><div class="ms">${l.m}</div></div></div>`).join('');
+function renderLog(){
+  const ul=$('#log');
+  if (!events.length){ ul.innerHTML='<li class="empty" style="display:block;border:0">กดเริ่มเพื่อดูว่าอะไรเกิดก่อน</li>'; return; }
+  ul.innerHTML = events.slice().reverse().map(e=>`<li style="--lvc:${lvVar(e.lv)}"><span class="tm">${fmtT(e.t)}</span><span class="dot"></span><span><span class="who">${e.who}</span> · ${e.txt}</span></li>`).join('');
+}
+function updateRunBtn(){
+  const b=$('#run'), done=(eggs.dry.exploded&&eggs.wet.exploded)||t>=C.TMAX;
+  b.textContent = running ? '❚❚ หยุดชั่วคราว' : done ? '▶ เริ่มใหม่' : t>0 ? '▶ ทำต่อ' : '▶ เริ่ม';
+}
+
+makeOven('dry'); makeOven('wet');
+reset();
+
+$('#run').onclick=()=>{
+  if ((eggs.dry.exploded&&eggs.wet.exploded)||t>=C.TMAX) reset();
+  running=!running; updateRunBtn();
+  if (sound && !ac){ try{ ac=new AudioContext(); }catch(e){} }
+};
+$('#reset').onclick=reset;
+$('#speed').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; speed=+b.dataset.v; [...$('#speed').children].forEach(x=>x.setAttribute('aria-pressed', x===b)); };
+$('#power').onchange=e=>{ P=+e.target.value; reset(); };
+$('#t0').onchange=e=>{ T0=+e.target.value; reset(); };
+$('#water').onchange=e=>{ W0=+e.target.value; reset(); };
+$('#view').onchange=e=>{ view=e.target.value; };
+$('#sound').onchange=e=>{ sound=e.target.checked; if (sound && !ac){ try{ ac=new AudioContext(); }catch(err){} } };
+
+let last=performance.now();
+function frame(now){
+  const rdt=Math.min(0.25,(now-last)/1000); last=now;
+  if (running){ let adv=rdt*speed; while(adv>1e-9 && running){ const d=Math.min(0.05,adv); stepAll(d); adv-=d; } }
+  for (const k in ovens){ drawOven(ovens[k], rdt); updatePanel(ovens[k]); }
+  const lv=updateAlert(); soundTick(lv, now);
+  drawChart();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
